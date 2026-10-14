@@ -1,5 +1,7 @@
 # ESMpp (bot)
 
+### VERY EARLY DEVELOPMENT, BARELY WORKS, USE AT YOUR OWN PERIL
+
 XMPP/Python port/remake of [esmbot](https://github.com/esmBot/esmBot/). So far only image manipulation has been ported using
 [pyvips](https://pypi.org/project/pyvips/) so that we don't need to make bindings ourselves.
 
