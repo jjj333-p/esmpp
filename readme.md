@@ -1,0 +1,43 @@
+# ESMpp (bot)
+
+XMPP/Python port/remake of [esmbot](https://github.com/esmBot/esmBot/). So far only image manipulation has been ported using
+[pyvips](https://pypi.org/project/pyvips/) so that we don't need to make bindings ourselves.
+
+All image processing is offloaded to background threads to keep the XMPP event loop responsive. Animated formats
+(WebP/GIF) are fully supported and automatically extrapolated across all manipulation commands.
+
+To use, either directly include a link (i.e. `,read-qr https://pic.t0.vc/QPVB.png`), or it will use the last OOB
+embedded media it has seen in this chat.
+
+**Filters & Distortion**
+
+* `blur`, `sharpen`, `invert`
+* `colors [color] [shift]`
+* `deepfry`, `jpeg [optional: quality]`
+
+**Motion & Transformations**
+
+* `bounce`, `shake`, `square` (crop)
+* `flip`, `flop`
+* `mirror`, `mirror2`, `mirror3`, `mirror4`
+* `slide`, `slide2`
+* `reverse`, `soos`, `fade`
+
+**Generators & Overlays**
+
+* `caption [text]`, `caption2 [text]`
+* `overlay [asset_name]`
+* `gamexplain`, `globe`, `snowglobe`, `scott`
+* `reddit [subreddit_name]`
+* `homebrew [text]`, `sonic [text]`
+
+**Utilities**
+
+* `create-qr [text]`
+* `read-qr` (Triggered by replying to an existing image URL)
+
+## Requirements
+
+* Python 3.something
+* System Dependency: `libvips` (e.g., `apt install libvips` on Debian/Ubuntu)
+* Python Packages: `pip install -r requirements.txt`

@@ -1,0 +1,6 @@
+slixmpp
+aiohttp
+pyvips[binary]
+qrcode[pil]
+pyzbar
+pillow
