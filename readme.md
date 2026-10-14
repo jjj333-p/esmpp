@@ -39,5 +39,5 @@ embedded media it has seen in this chat.
 ## Requirements
 
 * Python 3.something
-* System Dependency: `libvips` (e.g., `apt install libvips` on Debian/Ubuntu)
+* System Dependency: `pillow` (e.g., `dnf install pillow` on Fedora)
 * Python Packages: `pip install -r requirements.txt`
