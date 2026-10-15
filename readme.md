@@ -8,7 +8,7 @@ XMPP/Python port/remake of [esmbot](https://github.com/esmBot/esmBot/). So far o
 All image processing is offloaded to background threads to keep the XMPP event loop responsive. Animated formats
 (WebP/GIF) are fully supported and automatically extrapolated across all manipulation commands.
 
-To use, either directly include a link (i.e. `,read-qr https://github.com/user-attachments/assets/860f3c5a-bfae-4676-a8f3-5392d877cc13`), or it will use the last OOB
+To use, either directly include a link (i.e. `,read-qr https://dl.4d2.sh/tTiHCcnSx6oX.webp`), or it will use the last OOB
 embedded media it has seen in this chat.
 
 **Filters & Distortion**
