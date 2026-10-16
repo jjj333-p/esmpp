@@ -85,6 +85,7 @@ async def fetch_media(url: str) -> tuple[bytes, str]:
 
         return await response.read(), content_type
 
+
 def remove_fallbacks(body: str, fallbacks: Iterable[str]) -> str:
     # get out fallback ranges for features we support
     ranges_to_remove = []
@@ -111,6 +112,7 @@ PREFIX = ","
 last_media: dict[str, str] = {}
 
 vips = EsmBotImageProcessor()
+
 
 class MUCBot(slixmpp.ClientXMPP):
 
@@ -237,7 +239,7 @@ class MUCBot(slixmpp.ClientXMPP):
             # get attachment url
             attachment_url: str | None = msg.get('oob', {}).get('url')
             if attachment_url:
-                last_media[msg['from']] = attachment_url
+                last_media[msg['from'].bare] = attachment_url
 
             # ignore non-cmds
             return
@@ -278,7 +280,6 @@ class MUCBot(slixmpp.ClientXMPP):
             # pylint: disable=invalid-sequence-index
             message['oob']['url'] = upload_url
             message.send()
-
 
         async def process_img(func, *args):
             if url is None:
@@ -394,6 +395,7 @@ class MUCBot(slixmpp.ClientXMPP):
                 mbody=f"Exception occurred executing your command: \n```\n{str(e)}\n```",
                 mtype=msg['type']
             ).send()
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
