@@ -127,7 +127,7 @@ def remove_fallbacks(body: str, fallbacks: Iterable[str]) -> str:
 
     return "".join(result).strip()
 
-
+# lifted from https://en.wikipedia.org/wiki/Magic_8_Ball#Possible_answers
 EIGHTBALL_RESPONSES = [
     "It is certain",
     "It is decidedly so",
