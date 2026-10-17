@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import traceback
 # from builtins import function
 from collections.abc import Iterable
 
@@ -384,6 +385,30 @@ class MUCBot(slixmpp.ClientXMPP):
                         mbody=f"QR Text:\n```\n{text}\n```",
                         mtype=msg['type']
                     ).send()
+                case "slow":
+                    if len(cmd_args) > 0:
+                        await process_img(vips.speed, True, int(cmd_args[0]))
+                    else:
+                        await process_img(vips.speed, True)
+                case "speed":
+                    if len(cmd_args) > 0:
+                        await process_img(vips.speed, False, int(cmd_args[0]))
+                    else:
+                        await process_img(vips.speed, False)
+                case "spin":
+                    angle = int(cmd_args[0]) if len(cmd_args) > 0 else 0
+                    await process_img(vips.spin, angle)
+                case "squish":
+                    await process_img(vips.squish)
+                case "swirl":
+                    await process_img(vips.swirl)
+                case "tile":
+                    await process_img(vips.tile)
+                case "wall":
+                    await process_img(vips.wall)
+                case "whisper":
+                    raise_for_insufficient_args(cmd_args)
+                    await process_img(vips.whisper, " ".join(cmd_args))
                 case _:
                     self.plugin['xep_0461'].make_reply(
                         msg['from'],

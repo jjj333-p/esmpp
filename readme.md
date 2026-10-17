@@ -19,15 +19,17 @@ embedded media it has seen in this chat.
 
 **Motion & Transformations**
 
-* `bounce`, `shake`, `square` (crop)
-* `flip`, `flop`
+* `bounce`, `shake`, `square` (crop), `spin`, `squish`
+* `flip`, `flop`, `swirl`, `tile`, `wall`,
 * `mirror`, `mirror2`, `mirror3`, `mirror4`
 * `slide`, `slide2`
 * `reverse`, `soos`, `fade`
+* `speed [factor]`
+* `slow [factor]`
 
 **Generators & Overlays**
 
-* `caption [text]`, `caption2 [text]`
+* `caption [text]`, `caption2 [text]`, `whisper [text]`
 * `overlay [asset_name]`
 * `gamexplain`, `globe`, `snowglobe`, `scott`
 * `reddit [subreddit_name]`

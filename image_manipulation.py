@@ -923,3 +923,261 @@ class EsmBotImageProcessor:
 
     async def sonic(self, caption: str) -> bytes:
         async with self._lock: return await asyncio.to_thread(self._process_sonic, caption)
+
+    # --- 31. SPEED ---
+    def _process_speed(self, buffer_data: bytes, slow: bool, speed_val: float) -> bytes:
+        img = self._load_image(buffer_data)
+        width, page_height, n_pages = self._get_page_data(img)
+
+        # Retrieves existing frame delays or defaults to 50ms per frame[cite: 35]
+        delays = img.get("delay") if "delay" in img.get_fields() else [50] * n_pages
+        frames = []
+        new_delays = []
+
+        if slow:
+            for i in range(n_pages):
+                frames.append(img.crop(0, i * page_height, width, page_height))
+                new_delays.append(int(delays[i] * speed_val))  # Multiplies delay to slow down[cite: 35]
+        else:
+            # If speeding up pushes delays too low (<=10ms), it drops frames instead of changing delays[cite: 35]
+            drop_frames = any((d / speed_val) <= 10 for d in delays)
+
+            if drop_frames:
+                i = 0.0
+                while int(i) < n_pages:
+                    idx = int(i)
+                    frames.append(img.crop(0, idx * page_height, width, page_height))
+                    new_delays.append(delays[idx])
+                    i += speed_val  # Skips frames via float iteration[cite: 35]
+            else:
+                for i in range(n_pages):
+                    frames.append(img.crop(0, i * page_height, width, page_height))
+                    new_delays.append(int(delays[i] / speed_val))
+
+        final = pyvips.Image.arrayjoin(frames, across=1)
+        final.set_type(pyvips.GValue.gint_type, "page-height", page_height)
+        final.set_type(pyvips.GValue.array_int_type, "delay", new_delays)
+
+        return self._finalize_image(final)
+
+    async def speed(self, buffer_data: bytes, slow: bool = False, speed_val: float = 2.0) -> bytes:
+        async with self._lock: return await asyncio.to_thread(self._process_speed, buffer_data, slow, speed_val)
+
+    # --- 32. SPIN ---
+    def _process_spin(self, buffer_data: bytes, angle: int) -> bytes:
+        img = self._load_image(buffer_data).colourspace("srgb")
+        if not img.hasalpha(): img = img.bandjoin(255)
+        width, page_height, n_pages = self._get_page_data(img)
+
+        multi_page = n_pages > 1
+        if n_pages == 1:
+            multi_page = False
+            if angle == 0: n_pages = 30  # Forces 30 frames for a full rotation animation[cite: 36]
+
+        frames = []
+        out_page_height = page_height
+        for i in range(n_pages):
+            frame = img.crop(0, i * page_height, width, page_height) if multi_page else img
+            # Uses the static angle if provided, otherwise calculates the frame's progression through 360 degrees[cite: 36]
+            rotation = angle if angle > 0 else 360.0 * i / n_pages
+            rotated = frame.rotate(rotation)
+
+            # Embeds rotating frames into a static bounding box to prevent the canvas from wobbling[cite: 36]
+            embedded = rotated if angle > 0 else rotated.embed((width // 2) - (rotated.width // 2),
+                                                               (page_height // 2) - (rotated.height // 2), width,
+                                                               page_height)
+            out_page_height = embedded.height
+            frames.append(embedded)
+
+        final = pyvips.Image.arrayjoin(frames, across=1)
+        final.set_type(pyvips.GValue.gint_type, "page-height", out_page_height)
+        if not multi_page and angle == 0:
+            final.set_type(pyvips.GValue.array_int_type, "delay", [50] * 30)
+
+        return self._finalize_image(final)
+
+    async def spin(self, buffer_data: bytes, angle: int = 0) -> bytes:
+        async with self._lock: return await asyncio.to_thread(self._process_spin, buffer_data, angle)
+
+    # --- 33. SQUISH ---
+    def _process_squish(self, buffer_data: bytes) -> bytes:
+        img = self._load_image(buffer_data)
+        width, page_height, n_pages = self._get_page_data(img)
+
+        multi_page = n_pages > 1
+        if n_pages == 1:
+            multi_page = False
+            n_pages = 30  # Generates 30 frames for static inputs[cite: 37]
+
+        mult = 6.28 / n_pages  # Pi * 2 multiplier for a full sine/cosine cycle[cite: 37]
+
+        frames = []
+        for i in range(n_pages):
+            frame = img.crop(0, i * page_height, width, page_height) if multi_page else img
+            # Calculates alternating compression using sine for width and cosine for height[cite: 37]
+            new_width = (math.sin(i * mult) / 4) + 0.75
+            new_height = (math.cos(i * mult) / 4) + 0.75
+            # Resizes based on the wave and snaps the gravity to center[cite: 37]
+            resized = frame.resize(new_width, vscale=new_height).gravity("centre", width, page_height)
+            frames.append(resized)
+
+        final = pyvips.Image.arrayjoin(frames, across=1)
+        final.set_type(pyvips.GValue.gint_type, "page-height", page_height)
+        if not multi_page:
+            final.set_type(pyvips.GValue.array_int_type, "delay", [50] * 30)
+
+        return self._finalize_image(final)
+
+    async def squish(self, buffer_data: bytes) -> bytes:
+        async with self._lock: return await asyncio.to_thread(self._process_squish, buffer_data)
+
+    # --- 34. SWIRL ---
+    def _process_swirl(self, buffer_data: bytes) -> bytes:
+        img = self._load_image(buffer_data)
+        width, page_height, n_pages = self._get_page_data(img)
+
+        new_width = width * 3
+        new_height = page_height * 3
+        div_x, div_y = new_width / 2.0, new_height / 2.0
+
+        # Builds a coordinate map and converts it to polar complex coordinates[cite: 38]
+        index = pyvips.Image.xyz(new_width, new_height)
+        center = index - [div_x, div_y]
+        polar = center.copy(format="complex", bands=1).polar().copy(format="float", bands=2)
+
+        size = min(width, page_height) / 2.0
+
+        # Calculates swirl angle distortion exponentially based on distance from the center[cite: 38]
+        test = (1 - polar.extract_band(0) / size)
+        degrees = test.cast("float")**2
+        angle = polar.extract_band(1) + degrees * 180
+
+        # Converts back to rectangular coordinates for the final mapping[cite: 38]
+        distortion = polar.extract_band(0).bandjoin(angle).copy(format="complex", bands=1).rect().copy(format="float",
+                                                                                                       bands=2) + [
+                         div_x, div_y]
+
+        frames = []
+        for i in range(n_pages):
+            frame = img.crop(0, i * page_height, width, page_height) if n_pages > 1 else img
+            # Centers the frame on the 3x canvas, maps the swirl distortion using bicubic interpolation, and crops back to original bounds[cite: 38]
+            distorted = frame.gravity("centre", new_width, new_height, extend="copy").mapim(distortion,
+                                                                                            interpolate=pyvips.Interpolate.new(
+                                                                                                "bicubic"))
+            final_frame = distorted.crop(width, page_height, width, page_height)
+            frames.append(final_frame)
+
+        final = pyvips.Image.arrayjoin(frames, across=1)
+        final.set_type(pyvips.GValue.gint_type, "page-height", page_height)
+        return self._finalize_image(final)
+
+    async def swirl(self, buffer_data: bytes) -> bytes:
+        async with self._lock: return await asyncio.to_thread(self._process_swirl, buffer_data)
+
+    # --- 35. TILE ---
+    def _process_tile(self, buffer_data: bytes) -> bytes:
+        img = self._load_image(buffer_data)
+        width, page_height, n_pages = self._get_page_data(img)
+
+        frames = []
+        final_height = 0
+        for i in range(n_pages):
+            frame = img.crop(0, i * page_height, width, page_height) if n_pages > 1 else img
+            # Replicates the image in a 5x5 grid[cite: 39]
+            replicated = frame.replicate(5, 5)
+
+            # Calculates downward scaling to ensure the max dimension does not exceed 800px[cite: 39]
+            scale = 800.0 / replicated.height
+            if scale > 1: scale = 800.0 / replicated.width
+            if scale < 1: replicated = replicated.resize(scale)
+
+            final_height = replicated.height
+            frames.append(replicated)
+
+        final = pyvips.Image.arrayjoin(frames, across=1)
+        final.set_type(pyvips.GValue.gint_type, "page-height", final_height)
+        return self._finalize_image(final)
+
+    async def tile(self, buffer_data: bytes) -> bytes:
+        async with self._lock: return await asyncio.to_thread(self._process_tile, buffer_data)
+
+    # --- 38. WALL ---
+    def _process_wall(self, buffer_data: bytes) -> bytes:
+        img = self._load_image(buffer_data)
+        if not img.hasalpha(): img = img.bandjoin(255)
+        width, page_height, n_pages = self._get_page_data(img)
+
+        max_size = max(width, page_height)
+        # Calculates a vertical scaling factor to ensure uniform height before perspective distortion[cite: 42]
+        vscale = int(page_height * (128.0 / max_size)) / float(page_height)
+
+        # Downscales to a 128x128 box to reduce resolution, then immediately blows back up to 512x512[cite: 42]
+        tile = img.resize(128.0 / max_size, vscale=vscale).resize(512.0 / 128.0).copy_memory()
+
+        new_height = tile.height
+        width = tile.width
+        page_height = new_height // n_pages if n_pages > 1 else new_height
+
+        # Perspective Transform matrix (computed from OpenCV for ImageMagick point sets)[cite: 42]
+        T = [1.32996610e+00, -9.06795066e-02, -7.19995282e+01, -2.75152214e-01, 1.26875743e+00, -3.76041359e+01,
+             -7.70327830e-04, -7.08433645e-04]
+
+        i_img = pyvips.Image.xyz(512, 512)
+        # Calculates the transform mathematics using the matrix[cite: 42]
+        xi = (i_img[0] * T[0] + i_img[1] * T[1] + T[2]) / (i_img[0] * T[6] + i_img[1] * T[7] + 1)
+        yi = (i_img[0] * T[3] + i_img[1] * T[4] + T[5]) / (i_img[0] * T[6] + i_img[1] * T[7] + 1)
+
+        xi = xi % width
+        yi = yi % page_height
+        index = xi.bandjoin(yi).copy_memory()  # Binds the transform coordinates into a mapim index[cite: 42]
+
+        frames = []
+        for i in range(n_pages):
+            frame = tile.crop(0, i * page_height, width, page_height) if n_pages > 1 else tile
+            # Maps the 3D wall distortion using the computed index matrix[cite: 42]
+            mapped = frame.mapim(index, extend="repeat")
+            frames.append(mapped)
+
+        final = pyvips.Image.arrayjoin(frames, across=1)
+        final.set_type(pyvips.GValue.gint_type, "page-height", 512)
+        return self._finalize_image(final)
+
+    async def wall(self, buffer_data: bytes) -> bytes:
+        async with self._lock: return await asyncio.to_thread(self._process_wall, buffer_data)
+
+    # --- 40. WHISPER ---
+    def _process_whisper(self, buffer_data: bytes, caption: str) -> bytes:
+        img = self._load_image(buffer_data).colourspace("srgb")
+        if not img.hasalpha(): img = img.bandjoin(255)
+        width, page_height, n_pages = self._get_page_data(img)
+
+        size = width // 6
+        rad = size / 24.0  # Defines the drop-shadow radius relative to the text size[cite: 44]
+
+        font_string = f"Upright {size}"
+        font_path = os.path.join(self.base_path, "assets/fonts/whisper.otf")
+
+        # Gaussian blur mask multiplied by 8 for severe darkening[cite: 44]
+        mask = pyvips.Image.gaussmat(rad / 2, 0.1, separable=True) * 8
+
+        markup = f'<span foreground="white">{caption}</span>'
+        text_in = pyvips.Image.text(markup, rgba=True, align="centre", font=font_string, fontfile=font_path,
+                                    width=width)
+        # Embeds padding around the text to allow room for the shadow expansion[cite: 44]
+        text_in = text_in.embed(int(rad), int(rad), text_in.width + int(2 * rad), text_in.height + int(2 * rad))
+
+        new_text = text_in.convsep(mask)  # Applies separation matrix[cite: 44]
+        outline = new_text.cast("uchar") * [0, 0, 0, 1]  # Isolates black outline[cite: 44]
+
+        composited = outline.composite(text_in, "over")
+        text_img = composited.embed((width // 2) - (composited.width // 2),
+                                    (page_height // 2) - (composited.height // 2), width,
+                                    page_height)  # Centers the text onto canvas[cite: 44]
+
+        replicated = text_img.copy(interpretation="srgb").replicate(1, n_pages)
+        final = img.composite(replicated, "over")  # Overlays the text on every frame[cite: 44]
+
+        return self._finalize_image(final)
+
+    async def whisper(self, buffer_data: bytes, caption: str) -> bytes:
+        async with self._lock: return await asyncio.to_thread(self._process_whisper, buffer_data, caption)
