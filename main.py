@@ -113,6 +113,9 @@ last_media: dict[str, str] = {}
 
 vips = EsmBotImageProcessor()
 
+def raise_for_insufficient_args(arr: list | None, n: int = 1):
+    if arr is None or len(arr) < n:
+        raise ValueError(f"Insufficient arguments: `{'`, `'.join(arr or [])}`")
 
 class MUCBot(slixmpp.ClientXMPP):
 
@@ -304,12 +307,13 @@ class MUCBot(slixmpp.ClientXMPP):
                 case "bounce":
                     await process_img(vips.bounce)
                 case "caption":
-                    await process_img(vips.caption, " ".join(cmd_args))
+                    await process_img(vips.caption, " ".join(cmd_args) or " ")
                 case "caption2":
-                    await process_img(vips.caption2, " ".join(cmd_args))
+                    await process_img(vips.caption2, " ".join(cmd_args) or " ")
                 case "shake":
                     await process_img(vips.circle)
                 case "colors":
+                    raise_for_insufficient_args(cmd_args, 2)
                     await process_img(vips.colors, cmd_args[0], int(cmd_args[1]))
                 case "square":
                     await process_img(vips.crop)
@@ -318,6 +322,7 @@ class MUCBot(slixmpp.ClientXMPP):
                 case "fade":
                     await process_img(vips.fade, True)
                 case "overlay":
+                    raise_for_insufficient_args(cmd_args)
                     await process_img(vips.flag, cmd_args[0])
                 case "flip":
                     await process_img(vips.flip, False)
@@ -355,12 +360,15 @@ class MUCBot(slixmpp.ClientXMPP):
                 case "slide2":
                     await process_img(vips.slide, True)
                 case "homebrew":
+                    raise_for_insufficient_args(cmd_args)
                     i = await vips.homebrew(" ".join(cmd_args))
                     await reply_bytes(i)
                 case "sonic":
+                    raise_for_insufficient_args(cmd_args)
                     i = await vips.sonic(" ".join(cmd_args))
                     await reply_bytes(i)
                 case "create-qr":
+                    raise_for_insufficient_args(cmd_args)
                     i = await vips.qr_create(" ".join(cmd_args))
                     await reply_bytes(i, "png", "image/png")
                 case "read-qr":
@@ -376,7 +384,6 @@ class MUCBot(slixmpp.ClientXMPP):
                         mbody=f"QR Text:\n```\n{text}\n```",
                         mtype=msg['type']
                     ).send()
-                # TODO: meme, motivate, qr, sonic
                 case _:
                     self.plugin['xep_0461'].make_reply(
                         msg['from'],
@@ -387,12 +394,14 @@ class MUCBot(slixmpp.ClientXMPP):
                         mtype=msg['type']
                     ).send()
         except Exception as e:
+            tb_str = f"{str(e)}\n{"".join(traceback.format_exception(e))}"
+            print(tb_str)
             self.plugin['xep_0461'].make_reply(
                 msg['from'],
                 replyto_id,
                 f"> {msg['body']}",
                 mto=replyto_jid,
-                mbody=f"Exception occurred executing your command: \n```\n{str(e)}\n```",
+                mbody=f"Exception occurred executing your command: \n```\n{tb_str}\n```",
                 mtype=msg['type']
             ).send()
 
