@@ -5,6 +5,8 @@ import traceback
 from collections.abc import Iterable
 
 import json
+import random
+
 import aiohttp
 import asyncio
 
@@ -108,15 +110,40 @@ def remove_fallbacks(body: str, fallbacks: Iterable[str]) -> str:
     return "".join(result).strip()
 
 
+EIGHTBALL_RESPONSES = [
+    "It is certain",
+    "It is decidedly so",
+    "Without a doubt",
+    "Yes definitely",
+    "You may rely on it",
+    "As I see it, yes",
+    "Most likely",
+    "Outlook good",
+    "Yes",
+    "Signs point to yes",
+    "Reply hazy, try again",
+    "Ask again later",
+    "Better not tell you now",
+    "Cannot predict now",
+    "Concentrate and ask again",
+    "Don't count on it",
+    "My reply is no",
+    "My sources say no",
+    "Outlook not so good",
+    "Very doubtful",
+]
+
 PREFIX = ","
 
 last_media: dict[str, str] = {}
 
 vips = EsmBotImageProcessor()
 
+
 def raise_for_insufficient_args(arr: list | None, n: int = 1):
     if arr is None or len(arr) < n:
         raise ValueError(f"Insufficient arguments: `{'`, `'.join(arr or [])}`")
+
 
 class MUCBot(slixmpp.ClientXMPP):
 
@@ -409,6 +436,15 @@ class MUCBot(slixmpp.ClientXMPP):
                 case "whisper":
                     raise_for_insufficient_args(cmd_args)
                     await process_img(vips.whisper, " ".join(cmd_args))
+                case "8ball":
+                    self.plugin['xep_0461'].make_reply(
+                        msg['from'],
+                        replyto_id,
+                        f"> {msg['body']}",
+                        mto=replyto_jid,
+                        mbody=random.choice(EIGHTBALL_RESPONSES),
+                        mtype=msg['type']
+                    ).send()
                 case _:
                     self.plugin['xep_0461'].make_reply(
                         msg['from'],
